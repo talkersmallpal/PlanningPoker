@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: planning-poker
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: planning-poker
+      app.kubernetes.io/part-of: planning-poker
+    includeSelectors: false
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  # secret.example.yaml is intentionally omitted. Create the Secret first
+  # (see README) so you never apply placeholder credentials.
+
+images:
+  - name: REGISTRY/planning-poker
+    newName: REGISTRY/planning-poker
+    newTag: "1.0.0"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: planning-poker
+  labels:
+    app.kubernetes.io/name: planning-poker
+    app.kubernetes.io/part-of: planning-poker

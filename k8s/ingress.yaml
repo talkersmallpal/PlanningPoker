@@ -1,0 +1,33 @@
+# Example Ingress for ingress-nginx. Replace the host and TLS secret
+# (or enable cert-manager) before applying.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: planning-poker
+  namespace: planning-poker
+  labels:
+    app.kubernetes.io/name: planning-poker
+    app.kubernetes.io/part-of: planning-poker
+  annotations:
+    # Keep idle WebSockets open (the app pings every 30s).
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - poker.example.com
+      secretName: planning-poker-tls
+  rules:
+    - host: poker.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: planning-poker
+                port:
+                  number: 80

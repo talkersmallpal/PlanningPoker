@@ -1,0 +1,20 @@
+services:
+  planning-poker:
+    build: .
+    image: planning-poker:latest
+    container_name: planning-poker
+    restart: unless-stopped
+    env_file: .env
+    # Settings can also be set or overridden here (values here win over .env), e.g.:
+    # environment:
+    #   JIRA_UPDATE_DEFAULT_MODE: both      # sp | time | both - default of "Update in Jira"
+    #   JIRA_RECALC_REMAINING: "true"       # also recalculate the Remaining estimate when time is written
+    #   JIRA_DEFAULT_BOARD: "Team board"    # default board in "Load from Jira", by name
+    #   JIRA_DEFAULT_BOARD_PROJECT: PROJ    # preselect a project (limits the board picker)
+    ports:
+      # Bind to localhost only; put a TLS reverse proxy (nginx/Caddy/Traefik) in front.
+      - "127.0.0.1:${HOST_PORT:-8080}:8080"
+    volumes:
+      - poker-data:/data
+volumes:
+  poker-data:

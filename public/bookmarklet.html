@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planning Poker bookmark</title>
+  <link rel="icon" href="/favicon.svg?v=__ASSET_V_favicon.svg__" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css?v=__ASSET_V_styles.css__" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">♠</span> Planning Poker</a>
+  </header>
+  <main>
+    <div class="card narrow">
+      <h1>Planning Poker button for Jira</h1>
+      <p class="muted">Start a session from any Jira filter, search or backlog page. The button collects the ticket links on the page and opens the Start page with them filled in. You then enter the admin password and press Start.</p>
+      <p class="center"><a id="bmLink" class="bm-link" href="#">Planning Poker</a></p>
+      <p class="muted small center">Drag the button above to your bookmarks bar.</p>
+      <h3>Install</h3>
+      <ol>
+        <li>Show the bookmarks bar (Chrome / Edge / Firefox: Ctrl or Cmd + Shift + B; Safari: View, Show Favorites Bar).</li>
+        <li>Drag the <b>Planning Poker</b> button onto the bar. If dragging does not work, create a bookmark manually, name it <i>Planning Poker</i> and paste the code below as its URL.</li>
+        <li>Open a Jira page that lists tickets (narrow the filter first; every <code>/browse/KEY-123</code> link on the page is used) and click the bookmark. If the page has no tickets, it shows a warning and, after you close it, opens this app's home page instead.</li>
+      </ol>
+      <label>Bookmark code (one line)
+        <textarea id="bmCode" class="code" rows="6" readonly></textarea>
+      </label>
+      <div class="row-btns">
+        <button id="bmCopy" class="btn small" type="button">Copy code</button>
+        <span id="bmMsg" class="small muted"></span>
+      </div>
+      <p class="muted small">Base URL used: <code id="bmBase"></code>. If you move the app to another address, open this page from that address to get a new button.</p>
+      <p><a href="/">Back to Start page</a></p>
+    </div>
+  </main>
+  <script src="/bookmarklet.js?v=__ASSET_V_bookmarklet.js__"></script>
+</body>
+</html>

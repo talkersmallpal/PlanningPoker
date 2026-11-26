@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planning Poker</title>
+  <link rel="icon" href="/favicon.svg?v=__ASSET_V_favicon.svg__" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css?v=__ASSET_V_styles.css__" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">♠</span> Planning Poker</a>
+    <div class="top-info">
+      <span id="sessionName" class="session-name"></span>
+      <span id="ratePill" class="pill hidden"></span>
+      <span id="conn" class="conn hidden" title="Connection"></span>
+      <button id="shareBtn" class="btn small hidden" type="button">Copy invite link</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- Landing / create session -->
+    <section id="landing" class="view hidden">
+      <div class="card narrow">
+        <h1>Start a planning poker session</h1>
+        <p class="muted">Everyone can see who has voted, but values stay hidden until the last vote. The official result is the agreed story points, converted to hours = SP × rate, always rounded up to the next half hour.</p>
+        <form id="createForm" autocomplete="off">
+          <label>Session name <input name="name" maxlength="80" value="Estimation session" placeholder="Estimation session" /></label>
+          <div class="row2">
+            <label>Your name <input name="adminName" maxlength="40" placeholder="Facilitator" /></label>
+            <label>Hours per story point <input name="rate" type="number" min="0.5" max="100" step="0.5" value="4" inputmode="decimal" required /></label>
+          </div>
+          <label class="check"><input type="checkbox" name="adminVotes" checked /> I will vote too</label>
+          <label>Deck
+            <select name="deckPreset" id="deckPreset">
+              <option value="0,0.5,1,2,3,5,8,13,21,?,☕">Fibonacci (0, ½, 1, 2, 3, 5, 8, 13, 21, ?, ☕)</option>
+              <option value="0,1,2,3,5,8,13,20,40,100,?,☕">Modified Fibonacci (… 20, 40, 100)</option>
+              <option value="1,2,4,8,16,32,?,☕">Powers of two</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+          <label id="customDeckWrap" class="hidden">Custom deck (comma separated) <input name="customDeck" placeholder="1,2,3,5,8,?,☕" /></label>
+          <label>Jira tickets to estimate
+            <textarea name="queueText" rows="4" placeholder="https://url1&#10;https://url2"></textarea>
+            <small class="muted" id="queueHint">Paste ticket URLs (or keys), one per line or separated by commas. URLs are shown exactly as entered.</small>
+          </label>
+          <label id="pwWrap" class="hidden">Admin password <input name="password" type="password" autocomplete="current-password" /></label>
+          <p id="prefillNotice" class="notice hidden"></p>
+          <p id="createError" class="error hidden"></p>
+          <button class="btn primary big" type="submit">Start session</button>
+        </form>
+        <p class="muted small center"><a href="/bookmarklet.html">Add a "Planning Poker" button to your Jira pages</a></p>
+      </div>
+    </section>
+
+    <!-- Register -->
+    <section id="register" class="view hidden">
+      <div class="card narrow">
+        <h1>Join <span id="joinName"></span></h1>
+        <p class="muted">Enter your name to join. Everyone can see who has already voted, but not the value, until everybody has voted. Then each member's vote is shown next to their name.</p>
+        <form id="registerForm" autocomplete="off">
+          <label>Your name <input name="name" maxlength="40" required autofocus /></label>
+          <p id="registerError" class="error hidden"></p>
+          <button class="btn primary big" type="submit">Join session</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="message" class="view hidden">
+      <div class="card narrow center">
+        <h1 id="messageTitle"></h1>
+        <p id="messageText" class="muted"></p>
+        <a class="btn primary" href="/">Start a new session</a>
+      </div>
+    </section>
+
+    <!-- Room -->
+    <section id="room" class="view hidden">
+      <div class="grid">
+        <div class="col-main">
+          <div class="card story">
+            <div class="story-head">
+              <span id="roundStatus" class="badge"></span>
+              <span id="storyMeta" class="muted small"></span>
+            </div>
+            <h2 id="storyTitle">No story selected</h2>
+            <div id="storyFacts" class="facts"></div>
+          </div>
+
+          <div id="adminBar" class="card adminbar hidden">
+            <button id="startBtn" class="btn primary" type="button">Start voting</button>
+            <button id="revealBtn" class="btn" type="button">Reveal now</button>
+            <button id="revoteBtn" class="btn" type="button">Re-vote</button>
+            <button id="nextBtn" class="btn primary" type="button">Next story →</button>
+            <button id="skipBtn" class="btn ghost" type="button">Skip</button>
+          </div>
+
+          <div id="voteArea" class="card hidden">
+            <div class="vote-head">
+              <h3>Pick your card</h3>
+              <span id="voteProgress" class="muted"></span>
+            </div>
+            <div id="deck" class="deck"></div>
+            <p id="voteHint" class="muted small"></p>
+          </div>
+
+          <div id="waitArea" class="card hidden">
+            <p class="muted center" id="waitText">Waiting for the facilitator to start voting…</p>
+          </div>
+
+          <div id="results" class="card hidden">
+            <div class="vote-head">
+              <h3>Results</h3>
+              <span id="consensus" class="badge"></span>
+            </div>
+            <div id="revealCards" class="reveal-cards"></div>
+            <div id="histogram" class="histogram"></div>
+            <div class="stats">
+              <table>
+                <thead><tr><th></th><th>Story points</th><th>Hours <span id="rateNote" class="muted small"></span></th></tr></thead>
+                <tbody>
+                  <tr><td>Average</td><td id="stAvg"></td><td id="stAvgH" class="hours"></td></tr>
+                  <tr><td>Median</td><td id="stMed"></td><td id="stMedH" class="hours"></td></tr>
+                  <tr><td>Min / Max</td><td id="stMinMax"></td><td></td></tr>
+                  <tr class="final"><td>Agreed</td><td id="stFinal"></td><td id="stFinalH" class="hours"></td></tr>
+                </tbody>
+              </table>
+              <p id="excluded" class="muted small"></p>
+              <p class="muted small">Average and median are for discussion only. The official result is the agreed story points.</p>
+            </div>
+            <div id="finalControls" class="final-controls hidden">
+              <label class="agreed-label">Agreed story points
+                <input id="finalInput" type="number" min="0" step="0.5" />
+              </label>
+              <span id="agreedHoursPreview" class="hours"></span>
+              <div id="finalChoices" class="chips"></div>
+              <button id="confirmNextBtn" class="btn primary" type="button">Save &amp; next</button>
+              <button id="saveJiraBtn" class="btn hidden" type="button">Save to Jira</button>
+              <span id="saveJiraMsg" class="small"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="vote-head">
+              <h3>Session history</h3>
+              <span>
+                <button id="copyCsvBtn" class="btn small" type="button">Copy as CSV</button>
+                <button id="downloadCsvBtn" class="btn small ghost" type="button">Download</button>
+              </span>
+            </div>
+            <div class="table-wrap">
+              <table class="history">
+                <thead><tr><th>Issue</th><th>Agreed SP</th><th>Hours</th><th>Rate</th><th>Status</th></tr></thead>
+                <tbody id="historyBody"></tbody>
+                <tfoot id="historyFoot" class="hidden">
+                  <tr class="final"><td>Session total <span id="totNote" class="muted small"></span></td><td id="totSP"></td><td id="totH" class="hours"></td><td></td><td></td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <p id="historyEmpty" class="muted small">No stories estimated yet.</p>
+            <div id="jiraUpdateBox" class="jira-update hidden">
+              <label class="inline">Update in Jira:
+                <select id="jiraMode">
+                  <option value="sp">Story points</option>
+                  <option value="time">Time (Original estimate)</option>
+                  <option value="both" selected>Both</option>
+                </select>
+              </label>
+              <button id="jiraUpdateBtn" class="btn primary" type="button">UPDATE Jiras</button>
+              <button id="jiraRetryBtn" class="btn hidden" type="button">Retry failed</button>
+              <p id="jiraHint" class="muted small"></p>
+              <p id="jiraFieldInfo" class="muted small"></p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="col-side">
+          <div class="card">
+            <h3>Participants <span id="partCount" class="muted"></span></h3>
+            <ul id="participants" class="participants"></ul>
+          </div>
+
+          <div class="card">
+            <h3>Tickets to estimate <span id="queueCount" class="muted"></span></h3>
+            <ol id="queue" class="queue"></ol>
+            <p id="queueEmpty" class="muted small">No tickets in the queue.</p>
+            <div id="queueAdmin" class="hidden">
+              <form id="queueForm" autocomplete="off">
+                <textarea name="text" rows="3" placeholder="https://url1 or a key / title"></textarea>
+                <div class="row-btns">
+                  <button class="btn small primary" type="submit">Add to queue</button>
+                  <span id="queueMsg" class="small"></span>
+                </div>
+              </form>
+              <details id="jqlBox" class="hidden">
+                <summary>Load from Jira (JQL / sprint)</summary>
+                <form id="jqlForm" autocomplete="off">
+                  <input name="jql" placeholder='parent = PROJ-100 ORDER BY rank' />
+                  <div class="row-btns">
+                    <button class="btn small" type="submit">Search</button>
+                  </div>
+                </form>
+                <form id="boardForm" class="board-form" autocomplete="off">
+                  <div class="board-project">
+                    <span>Project</span>
+                    <div class="combo">
+                      <input name="project" placeholder="All projects (click to choose)" title="Pick a project: the board list then shows only its boards (All projects = every board)" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="projectMenu" />
+                      <ul id="projectMenu" class="combo-menu hidden" role="listbox" aria-label="Jira projects"></ul>
+                    </div>
+                  </div>
+                  <div class="row-btns">
+                    <div class="combo">
+                      <input name="board" placeholder="Board (click to choose or type)" title="Click to pick a board of the project above, or type part of its name" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="boardMenu" />
+                      <ul id="boardMenu" class="combo-menu hidden" role="listbox" aria-label="Jira boards"></ul>
+                    </div>
+                    <button class="btn small ghost" type="submit">Sprints</button>
+                    <select id="sprintSelect" class="hidden"></select>
+                  </div>
+                </form>
+                <div id="jqlResults" class="jql-results"></div>
+                <div class="row-btns">
+                  <button id="addSelectedBtn" class="btn small primary hidden" type="button">Add selected</button>
+                  <span id="jqlMsg" class="small"></span>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div id="settings" class="card hidden">
+            <h3>Settings</h3>
+            <label>Hours per story point <input id="rateInput" type="number" min="0.5" max="100" step="0.5" inputmode="decimal" /></label>
+            <label>Deck (comma separated) <input id="deckInput" /></label>
+            <button id="saveSettingsBtn" class="btn small" type="button">Apply</button>
+            <label class="check"><input id="adminVoterToggle" type="checkbox" /> I vote too</label>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-box">
+      <h3 id="confirmTitle"></h3>
+      <ul id="confirmList" class="confirm-list"></ul>
+      <label id="resendWrap" class="inline hidden"><input type="checkbox" id="resendBox" /> <span id="resendLabel"></span></label>
+      <div class="modal-actions">
+        <button id="confirmCancel" class="btn" type="button">Cancel</button>
+        <button id="confirmOk" class="btn primary" type="button">Update</button>
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js?v=__ASSET_V_app.js__"></script>
+</body>
+</html>
